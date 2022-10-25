@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=utf-8>
+    <title>Mofang Chinese</title>
+    <link rel="stylesheet"
+          href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+          crossorigin="anonymous">
+    <style>
+      body { margin: 0; }
+      canvas { width: 100%; height: 100% }
+      body {
+          overflow: hidden;
+          margin: 0;
+        }
+        .c-button {
+            position: absolute;
+            left:50%;
+            top:50%   ;
+            min-width: 50px;
+            min-height: 50px;
+            appearance: none;
+            border: 0;
+            border-radius: 5px;
+            background: #4676d7;
+            color: #fff;
+          
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .c-button:hover {
+          background: #1d49aa;
+        }
+
+        .my-btn {
+            position: absolute;
+        }
+
+
+    </style>
+</head>
+<body>
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+
+<a href="{{ back_url }}" class="btn btn-primary my-btn"> Назад </a>
+<button style="" id="playButton" class="c-button" disabled>
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 200 200">
+        <polygon points="67,57 67,157, 157,107" style="fill:lime;fill-rule:evenodd;"/>
+    </svg>
+</button>
+
+<div id="prev_url" style="visibility: {{ prev_button_visibility }};">
+    <a href="{{ prev_word_url }}" class="btn btn-primary my-btn"
+       style="top: 50px; left: 0px; {{ disabled_style }}"> Предыдущее слово </a>
+</div>
+<div id="next_url" style="visibility: {{ next_button_visibility }};">
+    <a href="{{ next_word_url }}" class="btn btn-primary my-btn" style="top: 50px; right: 0px">
+        Следующее слово </a>
+</div>
+
+<script src="js/three.js"></script>
+<script>
+    	var speed_of_rotation_x = speed_of_rotation_y = 0.1;
+        var angle_of_rotation_x = 0;  // на сколько нужно повернуться по x
+        var angle_of_rotation_y = 0;  // на сколько нужно повернуться по y
+        var main_sound = "none";
+        var size_coef = 0.336487907;
+        var width = window.innerWidth;
+        var height = window.innerHeight;
+        var play_button_size = 50;
+        var start_of_scene_z = 0.1;
+        var end_of_scene_z = 5;
+        var half_cube_size = Math.round((height * size_coef) / 2);
+    	var cube_screen_cords = {"up left": [Math.round(width / 2) - half_cube_size, Math.round(height / 2) - half_cube_size],
+                                "up right": [Math.round(width / 2) + half_cube_size, Math.round(height / 2) - half_cube_size],
+                                "down left": [Math.round(width / 2) - half_cube_size, Math.round(height / 2) + half_cube_size],
+                                "down right": [Math.round(width / 2) + half_cube_size, Math.round(height / 2) + half_cube_size]};
+        var cube_sides_x = ["front", "right", "back", "left"];
+        var cube_sides_y = ["x side", "up", "x side", "down"];
+        var current_side_x = 0;
+        var current_side_y = 0;
+        let screenLog = document.querySelector('#screene');
+
+        var buttons = document.getElementsByTagName("button");
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener("click", onButtonClick, false);
+            buttons[i].style.left = Math.round(width / 2) - play_button_size / 2 + "px";
+            buttons[i].style.top = Math.round(height / 2) - half_cube_size - play_button_size * 2 + "px";
+        };
+
+        function onButtonClick(event) {
+            if (main_sound != "none"){
+                if (main_sound.isPlaying){main_sound.stop();}
+                else {
+                    main_sound.play();
+                }
+            }
+        }
+
+        function buttonsScreenUpdate(){
+            var buttons = document.getElementsByTagName("button");
+            for (let i = 0; i < buttons.length; i++) {
+                buttons[i].addEventListener("click", onButtonClick, false);
+                buttons[i].style.left = Math.round(width / 2) - play_button_size / 2 + "px";
+                buttons[i].style.top = Math.round(height / 2) - half_cube_size - play_button_size * 2 + "px";
+            };
+        }
+
+        function screenUpdateCheck(){
+            width = window.innerWidth;
+            height = window.innerHeight;
+
+            buttonsScreenUpdate();
+
+            // without updating of the camara the cube proportions break
+            camera = new THREE.PerspectiveCamera( size_of_scene, width / height, 0.1, 5 );  // camera perspective
+            camera.position.z = 2;
+            // without updating of the renderer the three.js window breaks
+            renderer.setSize( width, height);  // cube lesson size on the screene
+            renderer.setClearColor("#01131E");
+            document.body.appendChild( renderer.domElement);
+            renderer.render( scene, camera );
+
+            scene.add( cube );
+
+            // limit dots
+            half_cube_size = Math.round((height * size_coef) / 2);
+            cube_screen_cords = {"up left": [Math.round(width / 2) - half_cube_size, Math.round(height / 2) - half_cube_size],
+                                "up right": [Math.round(width / 2) + half_cube_size, Math.round(height / 2) - half_cube_size],
+                                "down left": [Math.round(width / 2) - half_cube_size, Math.round(height / 2) + half_cube_size],
+                                "down right": [Math.round(width / 2) + half_cube_size, Math.round(height / 2) + half_cube_size]};
+        }
+
+        function changeSides(side, img_ang){
+            geometry = new THREE.BoxGeometry( 1, 1, 1 );
+            const loader = new THREE.TextureLoader();
+
+            var filepath = "images/";
+            if (side == "up") {
+                up_img = start_up_img.split("."); // /static/%D1%82%D1%8B_up,png
+                up_img[up_img.length - 2] = up_img[up_img.length - 2] + "_" + img_ang;
+                up_img = (up_img).join(".");
+                materials[2] = new THREE.MeshBasicMaterial({map: loader.load(up_img)});
+            }
+            if (side == "down") {
+                down_img = start_down_img.split("."); // /static/%D1%82%D1%8B_up,png
+                down_img[down_img.length - 2] = down_img[down_img.length - 2] + "_" + img_ang;
+                down_img = (down_img).join(".");
+                // down_img = filepath + side + "_" + img_ang + ".png";
+                materials[3] = new THREE.MeshBasicMaterial({map: loader.load(down_img)});
+            }
+            old_rot_x = cube.rotation.x
+            old_rot_y = cube.rotation.y
+            old_rot_z = cube.rotation.z
+            scene.remove(cube);
+            //alert("Hy");
+            cube = new THREE.Mesh(geometry, materials);
+            cube.rotation.x = old_rot_x;
+            cube.rotation.y = old_rot_y;
+            cube.rotation.z = old_rot_z;
+            scene.add( cube );
+            // scene.overrideMaterial = new THREE.MeshBasicMaterial({map: loader.load(front_img)});
+            // alert(front_img)
+            // limit dots
+            half_cube_size = Math.round((height * size_coef) / 2);
+            cube_screen_cords = {"up left": [Math.round(width / 2) - half_cube_size, Math.round(height / 2) - half_cube_size],
+                                "up right": [Math.round(width / 2) + half_cube_size, Math.round(height / 2) - half_cube_size],
+                                "down left": [Math.round(width / 2) - half_cube_size, Math.round(height / 2) + half_cube_size],
+                                "down right": [Math.round(width / 2) + half_cube_size, Math.round(height / 2) + half_cube_size]};
+        }
+
+        function undefinedAudioCheck(side){
+            // alert(side.slice(8, 17));
+            if (side.slice(8, 17) == "undefined"){
+                // alert("undefined");
+                document.getElementById("playButton").disabled = true;
+            } else {
+                document.getElementById("playButton").disabled = false;
+            }
+        }
+
+        function changeAudio(side){
+            if (main_sound != "none"){
+                if (main_sound.isPlaying){main_sound.stop();}
+            }
+            if (side == "front") {
+                undefinedAudioCheck("{{ front_audio }}");
+                main_sound = front_audio;
+            }
+            else if (side == "left"){
+            undefinedAudioCheck("{{ left_audio }}");
+            main_sound = left_audio;}
+            else if (side == "right"){
+            undefinedAudioCheck("{{ right_audio }}");
+            main_sound = right_audio;}
+            else if (side == "up"){
+            undefinedAudioCheck("{{ up_audio }}");
+            main_sound = up_audio;}
+            else if (side == "down"){
+            undefinedAudioCheck("{{ down_audio }}");
+            main_sound = down_audio;}
+            else {
+                main_sound = "none";
+            }
+        }
+
+        function buf_check(side, x, y, bufer_size){
+            if (side == "up"){
+                in_x = (x >= cube_screen_cords['up left'][0] && x <= cube_screen_cords['up right'][0]);
+                y_buf_limit = cube_screen_cords["up left"][1] - (half_cube_size * bufer_size);
+                in_y = (y >= y_buf_limit && y <= cube_screen_cords['up left'][1]);
+                big_bufer = (in_x && in_y);
+
+                left_limit = cube_screen_cords['up left'][0] + (half_cube_size * bufer_size);
+                right_limit = cube_screen_cords['up right'][0]  - (half_cube_size * bufer_size);
+                in_x = ((x >= left_limit && x <= right_limit));
+                up_limit = cube_screen_cords["up left"][1];
+                down_limit = (cube_screen_cords['up left'][1] + (half_cube_size * bufer_size));
+                in_y = (y >=  up_limit && y <= down_limit);
+                small_bufer =  (in_x && in_y);
+
+                return big_bufer || small_bufer;
+            }
+            if (side == "down"){
+                in_x = (x >= cube_screen_cords['up left'][0] && x <= cube_screen_cords['up right'][0]);
+                up_limit = cube_screen_cords["down left"][1];
+                down_limit = cube_screen_cords["down left"][1] + (half_cube_size * bufer_size);
+                in_y = (y >= up_limit && y <= down_limit);
+                big_bufer = (in_x && in_y);
+
+                left_limit = cube_screen_cords['up left'][0] + (half_cube_size * bufer_size);
+                right_limit = cube_screen_cords['up right'][0]  - (half_cube_size * bufer_size);
+                in_x = (x >= left_limit && x <= right_limit);
+                up_limit = cube_screen_cords["down left"][1] - (half_cube_size * bufer_size);
+                down_limit = cube_screen_cords['down left'][1];
+                in_y = (y >=  up_limit && y <= down_limit);
+                small_bufer =  (in_x && in_y);
+                return big_bufer || small_bufer;
+            }
+            if (side == "left"){
+                left_limit = cube_screen_cords['up left'][0] - (half_cube_size * bufer_size);
+                in_x = (x >=  left_limit && x <= cube_screen_cords['up left'][0]);
+                in_y = (y >= cube_screen_cords["up left"][1] && y <= cube_screen_cords["down left"][1]);
+                big_bufer = (in_x && in_y);
+
+                left_limit = cube_screen_cords['up left'][0];
+                right_limit = cube_screen_cords['up left'][0] + (half_cube_size * bufer_size);
+                in_x = (x >= left_limit && x <= right_limit);
+                up_limit = cube_screen_cords["up left"][1] + (half_cube_size * bufer_size);
+                down_limit = cube_screen_cords['down left'][1] - (half_cube_size * bufer_size);
+                in_y = (y >=  up_limit && y <= down_limit);
+                small_bufer =  (in_x && in_y);
+                return big_bufer || small_bufer;
+            }
+            if (side == "right"){
+                right_limit = cube_screen_cords['up right'][0] + (half_cube_size * bufer_size);
+                in_x = (x >= cube_screen_cords["up right"][0] && x <= right_limit);
+                in_y = (y >= cube_screen_cords["up right"][1] && y <= cube_screen_cords["down right"][1]);
+                big_bufer = (in_x && in_y);
+
+                right_limit = cube_screen_cords['up right'][0];
+                left_limit = cube_screen_cords['up right'][0] - (half_cube_size * bufer_size);
+                in_x = (x >= left_limit && x <= right_limit);
+                up_limit = cube_screen_cords["up right"][1] + (half_cube_size * bufer_size);
+                down_limit = cube_screen_cords['down right'][1] - (half_cube_size * bufer_size);
+                in_y = (y >=  up_limit && y <= down_limit);
+                small_bufer =  (in_x && in_y);
+                return big_bufer || small_bufer;
+            }
+        }
+
+        function mouseListener(e) {
+            if (e.which == 1){
+                mousex = e.clientX;
+                mousey = e.clientY;
+                // size of press zone 30%
+                bufer_coef = 0.3
+
+                if (buf_check("up", mousex, mousey, bufer_coef)){  // если пользователь нажал вверх
+                    if (angle_of_rotation_y == 0){  // и куб при этом стоял на месте
+                        if (cube_sides_y[current_side_y] != "up"){  // если это не сторона up
+                            angle_of_rotation_y = Math.PI * 0.5;  // крутимся
+                            current_side_y = (current_side_y + 1) % 4;  // измененяем сторону
+                            if (cube_sides_y[current_side_y] == "x side" && cube_sides_x[current_side_x] == "front"){
+                                changeAudio("front");
+                            }
+                            if (cube_sides_y[current_side_y] == "x side" && cube_sides_x[current_side_x] == "left"){
+                                changeAudio("left");
+                            }
+                            if (cube_sides_y[current_side_y] == "x side" && cube_sides_x[current_side_x] == "right"){
+                                changeAudio("right");
+                            }
+                            if (cube_sides_y[current_side_y] == "up"){  // если уже на стороне up
+                                changeSides("up", 90 * current_side_x);  // поворочиваем картинку на стороне up
+                                changeAudio("up");  // меняем аудио на сторону up
+                            }
+                        }
+                    }
+                }
+                else if (buf_check("down", mousex, mousey, bufer_coef)){
+                    if (angle_of_rotation_y == 0){
+                        if (cube_sides_y[current_side_y] != "down"){
+                            angle_of_rotation_y = -Math.PI * 0.5;
+                            current_side_y -= 1;
+                            if (current_side_y == -1){current_side_y = 3};
+                            if (cube_sides_y[current_side_y] == "x side" && cube_sides_x[current_side_x] == "front"){
+                                changeAudio("front");
+                            }
+                            if (cube_sides_y[current_side_y] == "x side" && cube_sides_x[current_side_x] == "left"){
+                                changeAudio("left");
+                            }
+                            if (cube_sides_y[current_side_y] == "x side" && cube_sides_x[current_side_x] == "right"){
+                                changeAudio("right");
+                            }
+                            if (cube_sides_y[current_side_y] == "down"){
+                                changeSides("down", 90 * current_side_x);
+                                changeAudio("down");
+                            }
+                        }
+                    }
+                }
+                else if (buf_check("right", mousex, mousey, bufer_coef)){
+                    if (angle_of_rotation_x == 0){
+                        if (cube_sides_x[current_side_x] != "right"){
+                            if ((cube_sides_y[current_side_y] != "down") && (cube_sides_y[current_side_y] != "up")){
+                                angle_of_rotation_x = -Math.PI * 0.5;
+                                current_side_x = (current_side_x + 1) % 4;
+                                if (cube_sides_y[current_side_y] == "x side"){
+                                    if (cube_sides_x[current_side_x] == "front"){
+                                        changeAudio("front");
+                                    }
+                                    if (cube_sides_x[current_side_x] == "right"){
+                                        changeAudio("right");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (buf_check("left", mousex, mousey, bufer_coef)){
+                    if (angle_of_rotation_x == 0){
+                        if (cube_sides_x[current_side_x] != "left"){
+                            if ((cube_sides_y[current_side_y] != "down") && (cube_sides_y[current_side_y] != "up")){
+                                angle_of_rotation_x = Math.PI * 0.5;
+                                current_side_x -= 1;
+                                if (current_side_x == -1){current_side_x = 3};
+                                if (cube_sides_y[current_side_y] == "x side"){
+                                    if (cube_sides_x[current_side_x] == "front"){
+                                        changeAudio("front");
+                                    }
+                                    if (cube_sides_x[current_side_x] == "left"){
+                                        changeAudio("left");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } // else {
+                    // alert(cube_sides_x[current_side_x]);
+                    // alert(cube_sides_y[current_side_y]);
+                // }
+            }
+        }
+
+        function cubeRotation(){
+            if (angle_of_rotation_x > 0){
+                if (angle_of_rotation_x > speed_of_rotation_x) {
+                    cube.rotation.y += speed_of_rotation_x;
+                    angle_of_rotation_x -= speed_of_rotation_x;
+                }
+                else {
+                    cube.rotation.y += angle_of_rotation_x;
+                    angle_of_rotation_x = 0;
+                }
+            }
+            if (angle_of_rotation_x < 0){
+                if (angle_of_rotation_x < -speed_of_rotation_x){
+                    cube.rotation.y -= speed_of_rotation_x;
+                    angle_of_rotation_x += speed_of_rotation_x;
+                } else {
+                    cube.rotation.y += angle_of_rotation_x;
+                    angle_of_rotation_x = 0;
+                }
+            }
+            if (angle_of_rotation_y > 0){
+                if (angle_of_rotation_y > speed_of_rotation_y) {
+                    cube.rotation.x += speed_of_rotation_y;
+                    angle_of_rotation_y -= speed_of_rotation_y;
+                }
+                else {
+                    cube.rotation.x += angle_of_rotation_y;
+                    angle_of_rotation_y = 0;
+                }
+            }
+            if (angle_of_rotation_y < 0){
+                if (angle_of_rotation_y < -speed_of_rotation_y){
+                    cube.rotation.x -= speed_of_rotation_y;
+                    angle_of_rotation_y += speed_of_rotation_y;
+                } else {
+                    cube.rotation.x += angle_of_rotation_y;
+                    angle_of_rotation_y = 0;
+                }
+            }
+        }
+
+        function render() {
+            requestAnimationFrame( render );
+            cubeRotation();
+            screenUpdateCheck();
+            // debug();
+        }
+
+        document.addEventListener('mousedown', mouseListener);
+
+    	var scene = new THREE.Scene();
+        size_of_scene = 90;
+		var camera = new THREE.PerspectiveCamera( size_of_scene, window.innerWidth / window.innerHeight, start_of_scene_z, end_of_scene_z );  // camera perspective
+        camera.position.z = 2;
+
+		var renderer = new THREE.WebGLRenderer();
+		renderer.setSize( window.innerWidth, window.innerHeight);  //cube lesson size on the screen
+		document.body.appendChild( renderer.domElement);
+
+		var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+		const loader = new THREE.TextureLoader();
+        // var front_img = "{{ front_img }}";
+        // var back_img = "{{ back_img }}";
+        // var left_img = "{{ left_img }}";
+        // var right_img = "{{ right_img }}";
+        // var up_img = "{{ up_img }}";
+        // var start_up_img = "{{ up_img }}";
+        var front_img = "/static/2_left.png";
+        var back_img = "/static/2_left.png";
+        var left_img = "/static/2_left.png";
+        var right_img = "/static/2_left.png";
+        var up_img = "/static/2_left.png";
+        var start_up_img = "/static/2_left.png";
+        up_img = up_img.split(".");
+        up_img[up_img.length - 2] = up_img[up_img.length - 2] + "_0";
+        up_img = (up_img).join(".");
+        var down_img = "{{ down_img }}";
+        var start_down_img = "{{ down_img }}";
+        down_img = down_img.split(".");
+        down_img[down_img.length - 2] = down_img[down_img.length - 2] + "_0";
+        down_img = (down_img).join(".");
+        materials = [
+            new THREE.MeshBasicMaterial({map: loader.load(right_img)}), // right
+            new THREE.MeshBasicMaterial({map: loader.load(left_img)}),  // left
+            new THREE.MeshBasicMaterial({map: loader.load(up_img)}),    // up
+            new THREE.MeshBasicMaterial({map: loader.load(down_img)}),  // down
+            new THREE.MeshBasicMaterial({map: loader.load(front_img)}), // front
+            new THREE.MeshBasicMaterial({map: loader.load(back_img)}),  // back
+        ];
+        cube = new THREE.Mesh(geometry, materials);
+        cube.rotation.x = 0;
+        cube.rotation.y = 0;
+        cube.rotation.z = 0;
+        scene.add( cube );
+        half_cube_size = Math.round((height * size_coef) / 2);
+        cube_screen_cords = {"up left": [Math.round(width / 2) - half_cube_size, Math.round(height / 2) - half_cube_size],
+                            "up right": [Math.round(width / 2) + half_cube_size, Math.round(height / 2) - half_cube_size],
+                            "down left": [Math.round(width / 2) - half_cube_size, Math.round(height / 2) + half_cube_size],
+                            "down right": [Math.round(width / 2) + half_cube_size, Math.round(height / 2) + half_cube_size]};
+
+        var listener = new THREE.AudioListener();
+        camera.add( listener );
+
+        var front_audio = new THREE.Audio( listener );
+        var left_audio = new THREE.Audio( listener );
+        var right_audio = new THREE.Audio( listener );
+        var up_audio = new THREE.Audio( listener );
+        var down_audio = new THREE.Audio( listener );
+
+
+        var audioLoader = new THREE.AudioLoader();
+        audioLoader.load( '{{ front_audio }}', function( buffer ) {
+                front_audio.setBuffer( buffer );
+                front_audio.setLoop(false);
+                front_audio.setVolume(0.5);
+            },
+        );
+        var audioLoader = new THREE.AudioLoader();
+        audioLoader.load( '{{ left_audio }}', function( buffer ) {
+                left_audio.setBuffer( buffer );
+                left_audio.setLoop(false);
+                left_audio.setVolume(0.5);
+            },
+        );
+        var audioLoader = new THREE.AudioLoader();
+        audioLoader.load( '{{ right_audio }}', function( buffer ) {
+                right_audio.setBuffer( buffer );
+                right_audio.setLoop(false);
+                right_audio.setVolume(0.5);
+            },
+        );
+        var audioLoader = new THREE.AudioLoader();
+        audioLoader.load( '{{ up_audio }}', function( buffer ) {
+                up_audio.setBuffer( buffer );
+                up_audio.setLoop(false);
+                up_audio.setVolume(0.5);
+            },
+        );
+        var audioLoader = new THREE.AudioLoader();
+        audioLoader.load( '{{ down_audio }}', function( buffer ) {
+                down_audio.setBuffer( buffer );
+                down_audio.setLoop(false);
+                down_audio.setVolume(0.5);
+            },
+        );
+        main_sound = front_audio;
+        changeAudio("front");
+  		render();
+        
+
+</script>
+</body>
+</html>
