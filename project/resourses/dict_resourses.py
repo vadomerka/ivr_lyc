@@ -9,11 +9,11 @@ from flask import request
 import os
 
 
-def abort_if_not_found(word_id):
+def abort_if_not_found(id):
     session = db_session.create_session()
-    word = session.query(Words).get(word_id)
+    word = session.query(Words).get(id)
     if not word:
-        abort(404, message=f"Word {word_id} not found")
+        abort(404, message="Object not found")
 
 
 class DictResourse(Resource):
@@ -36,49 +36,6 @@ class DictResourse(Resource):
                   "up_side_audio",
                   "down_side_audio")) for item in dictionary]}
         return jsonify(ret)
-
-    def post(self):
-        # print(request.json)
-        if not request.json:
-            return jsonify({'error': 'Empty request'})
-        elif not all(key in request.json for key in
-                     ["author",
-                      "hieroglyph",
-                      "translation",
-                      "transcription",
-                      "phrase_ch",
-                      "phrase_ru",
-                      "image",
-                      "front_side_audio",
-                      "left_side_audio",
-                      "right_side_audio",
-                      "up_side_audio",
-                      "down_side_audio"]):
-            # print(2)
-            return jsonify({'error': 'Bad request'})
-        # print(3)
-        args = parserAddWord.parse_args()
-        session = db_session.create_session()
-        # print(args)
-        word = Words(author=args["author"],
-                     hieroglyph=args["hieroglyph"],
-                     translation=args["translation"],
-                     front_side=args["transcription"],
-                     left_side=args["phrase_ch"],
-                     right_side=args["phrase_ru"],
-                     up_side=args["image"],
-                     front_side_audio=args["front_side_audio"],
-                     left_side_audio=args["left_side_audio"],
-                     right_side_audio=args["right_side_audio"],
-                     up_side_audio=args["up_side_audio"],
-                     down_side_audio=args["down_side_audio"]
-                     )
-        # print(word)
-        # print(4)
-        session.add(word)
-        session.commit()
-        # print(5)
-        return jsonify({'success': 'OK'})
 
 
 class WordResourse(Resource):
@@ -115,30 +72,43 @@ class WordResourse(Resource):
                   word.right_side_audio,
                   word.down_side_audio,
                   word.up_side_audio]:
-            if "undefined" not in x:
+            if x and "undefined" not in x:
                 side_list.append(x)
-
         for name in side_list:
             filename = path + str(name)
-            # print(filename)
             if os.path.exists(filename):
                 os.remove(filename)
-            else:
-                pass
-                # print(f"The file {filename} does not exist")
+        this_word_to_users = session.query(WordsToUsers).filter(WordsToUsers.words == word_id).all()
+        if this_word_to_users:
+            for wtu in this_word_to_users:
+                session.delete(wtu)
         session.delete(word)
         session.commit()
         return jsonify({'success': 'OK'})
 
 
 class WordViewRecordingResource(Resource):
+    def get(self, user_id, word_id):
+        session = db_session.create_session()
+        word_to_user = session.query(WordsToUsers).filter(WordsToUsers.users == user_id,
+                                                          WordsToUsers.words == word_id).first()
+        if not word_to_user:
+            abort(404, message=f"Object not found")
+        ret = {"word_to_user": {"id": word_to_user.id,
+                                "words": word_to_user.words,
+                                "users": word_to_user.users,
+                                "learn_state": word_to_user.learn_state}}
+        session.close()
+        return jsonify(ret)
+
     def post(self, user_id, word_id):
         session = db_session.create_session()
         word_to_user = session.query(WordsToUsers).filter(WordsToUsers.users == user_id,
                                                           WordsToUsers.words == word_id).first()
         if not word_to_user:
-            abort(404, message=f"User {user_id} or word {word_id} not found")
-        word_to_user.learn_state = 1
+            abort(404, message=f"Object not found")
+        if word_to_user.learn_state == 0:
+            word_to_user.learn_state = 1
         session.merge(word_to_user)
         session.commit()
         session.close()

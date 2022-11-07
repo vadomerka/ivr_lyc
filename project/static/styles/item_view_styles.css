@@ -1,0 +1,118 @@
+.page-buttons-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.page-button {
+    border: solid 3px var(--red);
+    color: var(--red);
+    background-color: white;
+    width: 43px;
+    height: 43px;
+}
+
+.page-button:hover {
+    border: solid 3px var(--contrast-red);
+    color: white;
+    background-color: var(--red);
+    width: 43px;
+    height: 43px;
+}
+
+.current-page-button {
+    border: solid 3px var(--contrast-red);
+    color: white;
+    background-color: var(--red);
+    width: 43px;
+    height: 43px;
+}
+
+.item-button {
+    width: 180px;
+    height: 43px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-item-button {
+    height: 43px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0px;
+    position: relative;
+}
+
+.instruments-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-around;
+    margin-bottom: 2vh;
+}
+
+.add-item-group {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2vh;
+    flex-direction: column;
+    align-items: center;
+}
+
+.item-container {
+    display: flex;
+}
+
+.items-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    align-items: center;
+    margin-bottom: 2vh;
+}
+
+.sort-button-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.sort-group-layer {
+    display: flex;
+}
+
+.instrument {
+    margin: 1vh;
+}
+
+.instruments-box {
+    min-width: var(--min-window-size);
+    display: block;"
+}
+
+.page-buttons-box {
+    align-items: center;
+    width: 100%;
+    justify-content: center;
+    display: flex;
+}
+
+.add-item-box {
+    align-items: center;
+    width: 100%;
+    justify-content: center;
+    display: flex;
+    margin: 5px 5px 5px 5px;
+}
+
+.not-course-item {
+    background-color: var(--orange);
+    color: var(--contrast-orange);
+}
+
+.course-item {
+    background-color: var(--yellow);
+    color: var(--contrast-yellow);
+}

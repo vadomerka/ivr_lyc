@@ -1,7 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>К сожалению, ваша ссылка недействительна</h1>
-<h1>Попросите вашего учителя создать новую</h1>
-<a class="btn btn-ptimary" href="/login">Вернуться на страницу авторизации</a>
+<div class="message-page-container">
+    {% if message %}
+        <h1 class="message-page-header">{{ message }}</h1>
+    {% else %}
+        <h1 class="message-page-header">К сожалению, эта ссылка недействительна</h1>
+    {% endif %}
+    <h3 class="message-page-help-text">Обратитесь к своему учителю, для создания новой</h3>
+    <a class="btn btn-primary" href="/">Вернуться на главную страницу</a>
+</div>
 {% endblock %}

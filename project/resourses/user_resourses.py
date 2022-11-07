@@ -3,6 +3,9 @@ from flask import jsonify
 from data import db_session
 from data.courses import Courses, users_to_course
 from data.users import User
+from data.words import Words, WordsToUsers
+from data.tests import TestsToUsers
+from data.trainers import TrainersToUsers
 from resourses.parser import parserAdd
 from flask import request
 
@@ -11,7 +14,7 @@ def abort_if_not_found(id):
     session = db_session.create_session()
     user = session.query(User).get(id)
     if not user:
-        abort(404, message=f"User {id} not found")
+        abort(404, message="Object not found")
 
 
 class UserResource(Resource):
@@ -37,6 +40,18 @@ class UserResource(Resource):
         abort_if_not_found(user_id)
         session = db_session.create_session()
         user = session.query(User).get(user_id)
+        words_to_this_user = session.query(WordsToUsers).filter(WordsToUsers.users == user_id).all()
+        if words_to_this_user:
+            for wtu in words_to_this_user:
+                session.delete(wtu)
+        tests_to_this_user = session.query(TestsToUsers).filter(TestsToUsers.user_id == user_id).all()
+        if tests_to_this_user:
+            for tu in tests_to_this_user:
+                session.delete(tu)
+        trainers_to_this_user = session.query(TrainersToUsers).filter(TrainersToUsers.user_id == user_id).all()
+        if trainers_to_this_user:
+            for tu in trainers_to_this_user:
+                session.delete(tu)
         session.delete(user)
         session.commit()
         return jsonify({'success': 'OK'})
@@ -46,28 +61,20 @@ class UserListResource(Resource):
     def get(self):
         session = db_session.create_session()
         users = session.query(User).all()
-        # print(users)
-        ret = jsonify({'users': [item.to_dict(
-            only=('id', 'email', 'name', 'about', 'hashed_password', 'teacher'))
-            for item in users]})
-        # print(ret)
-
-        return ret
-
-    def post(self, user_id):
-        if not request.json:
-            return jsonify({'error': 'Empty request'})
-        elif not all(key in request.json for key in
-                     ['name', 'about']):
-            return jsonify({'error': 'Bad request'})
-        args = parserAdd.parse_args()
-        session = db_session.create_session()
-        new_id = max([c.id for c in session.query(Courses)]) + 1
-        course = Courses(
-            id=new_id,
-            name=args['name'],
-            about=args['about']
-        )
-        session.add(course)
-        session.commit()
-        return jsonify({'success': 'OK'})
+        ret = {"users": []}
+        for user in users:
+            u_item = user.to_dict(only=('id',
+                                        'name',
+                                        'email',
+                                        "about",
+                                        "hashed_password",
+                                        "teacher",
+                                        "creator"))
+            u_item["courses"] = [item.to_dict(only=('id', 'name', "about")) for item in
+                                 list(user.courses)]
+            u_item["words"] = [item.to_dict(only=('id',
+                                                  'hieroglyph',
+                                                  "translation")) for item in
+                               list(user.words)]
+            ret["users"].append(u_item)
+        return jsonify(ret)

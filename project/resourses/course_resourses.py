@@ -9,11 +9,11 @@ from resourses.parser import parserAdd
 from flask import request
 
 
-def abort_if_not_found(course_id):
+def abort_if_not_found(id):
     session = db_session.create_session()
-    course = session.query(Courses).get(course_id)
+    course = session.query(Courses).get(id)
     if not course:
-        abort(404, message=f"Course {course_id} not found")
+        abort(404, message="Object not found")
 
 
 class CourseResource(Resource):
@@ -46,26 +46,8 @@ class CourseResource(Resource):
 class CourseListResource(Resource):
     def get(self, user_id):
         session = db_session.create_session()
-        cur_user = session.query(User).filter(User.id == user_id).first()
+        cur_user = session.query(User).get(user_id)
         if cur_user:
             return jsonify({'courses': [item.to_dict(
                 only=('id', 'name', 'about')) for item in cur_user.courses]})
-        return abort(404, message=f"User {user_id} not found")
-
-    def post(self, user_id):
-        if not request.json:
-            return jsonify({'error': 'Empty request'})
-        elif not all(key in request.json for key in
-                     ['name', 'about']):
-            return jsonify({'error': 'Bad request'})
-        args = parserAdd.parse_args()
-        session = db_session.create_session()
-        new_id = max([c.id for c in session.query(Courses)]) + 1
-        course = Courses(
-            id=new_id,
-            name=args['name'],
-            about=args['about']
-        )
-        session.add(course)
-        session.commit()
-        return jsonify({'success': 'OK'})
+        return abort(404, message=f"Object not found")
